@@ -58,18 +58,18 @@ int main(int argc, char* argv[]) {
     }
 
     for (int i = 0; i < nt; i++) {
+        int index = nx + 1;
         for (int y = 1; y < ny - 1; y++) {
-            for (int x = 1; x < nx - 1; x++) {
-                const int index = y * nx + x;
+            for (int x = 1; x < nx - 1; x++, index++) {
                 const double uc = u[currIndex][index];
-                const double ur = u[currIndex][y * nx + x + 1];
-                const double ul = u[currIndex][y * nx + x - 1];
-                const double ut = u[currIndex][(y + 1) * nx + x];
-                const double ud = u[currIndex][(y - 1) * nx + x];
+                const double ur = u[currIndex][index + 1];
+                const double ul = u[currIndex][index - 1];
+                const double ut = u[currIndex][index + nx];
+                const double ud = u[currIndex][index - nx];
                 const double pc = p[index];
-                const double pd = p[(y - 1) * nx + x];
-                const double pdl = p[(y - 1) * nx + x - 1];
-                const double pl = p[y * nx + x - 1];
+                const double pd = p[index - nx];
+                const double pdl = p[index - nx - 1];
+                const double pl = p[index - 1];
 
                 u[prevIndex][index] = 2 * uc - u[prevIndex][index] + tau2 * (
                         ((ur - uc) * (pd + pc) + (ul - uc) * (pdl + pl)) * hxrec +
