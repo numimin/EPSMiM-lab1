@@ -35,7 +35,11 @@ int main(int argc, char* argv[]) {
     const double hx = (xb - xa) / (nx - 1);
     const double hy = (yb - ya) / (ny - 1);
 
+    const double hxrec = 1 / (2 * hx * hx);
+    const double hyrec = 1 / (2 * hy * hy);
+
     const double tau = (nx <= 1000 && ny <= 1000) ? 0.01 : 0.001;
+    const double tau2 = tau * tau;
 
     int prevIndex = 0;
     int currIndex = 1;
@@ -67,14 +71,14 @@ int main(int argc, char* argv[]) {
                 const double pdl = p[(y - 1) * nx + x - 1];
                 const double pl = p[y * nx + x - 1];
 
-                u[prevIndex][index] = 2 * uc - u[prevIndex][index] + (tau * tau) * (
-                        ((ur - uc) * (pd + pc) + (ul - uc) * (pdl + pl)) / (2 * hx * hx) +
-                                ((ut - uc) * (pl + pc) + (ud - uc) * (pdl + pd)) / (2 * hy * hy)
+                u[prevIndex][index] = 2 * uc - u[prevIndex][index] + tau2 * (
+                        ((ur - uc) * (pd + pc) + (ul - uc) * (pdl + pl)) * hxrec +
+                                ((ut - uc) * (pl + pc) + (ud - uc) * (pdl + pd)) * hxrec
                         );
             }
         }
 
-        u[prevIndex][sy * nx + sx] += (tau * tau) * f(i, tau);
+        u[prevIndex][sy * nx + sx] += tau2 * f(i, tau);
 
         std::swap(prevIndex, currIndex);
     }
