@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
     std::cout << duration.count() / 1000.0 << "s" << std::endl;
 
     FILE* file = std::fopen("./main.dat", "w");
-    std::fwrite(&u[prevIndex][0], sizeof(double), nx * ny, file);
+    std::fwrite(&u[currIndex][0], sizeof(double), nx * ny, file);
     std::fclose(file);
 
     return EXIT_SUCCESS;
