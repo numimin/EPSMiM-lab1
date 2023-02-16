@@ -58,9 +58,9 @@ int main(int argc, char* argv[]) {
     }
 
     for (int i = 0; i < nt; i++) {
-        int index = nx + 1;
         for (int y = 1; y < ny - 1; y++) {
-            for (int x = 1; x < nx - 1; x++, index++) {
+            for (int x = 1; x < nx - 1; x++) {
+                const int index = y * nx + x;
                 const double uc = u[currIndex][index];
                 const double ur = u[currIndex][index + 1];
                 const double ul = u[currIndex][index - 1];
