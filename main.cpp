@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
 
                 u[prevIndex][index] = 2 * uc - u[prevIndex][index] + tau2 * (
                         ((ur - uc) * (pd + pc) + (ul - uc) * (pdl + pl)) * hxrec +
-                                ((ut - uc) * (pl + pc) + (ud - uc) * (pdl + pd)) * hxrec
+                                ((ut - uc) * (pl + pc) + (ud - uc) * (pdl + pd)) * hyrec
                         );
             }
         }
