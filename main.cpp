@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
     double* u1 = (double*) aligned_alloc(32, nx * ny * sizeof(double));
 
     double* u[] = {u0, u1};
-    double* p __attribute__ ((aligned (32))) = (double*) calloc(nx * ny, sizeof(double));
+    double* p = (double*) calloc(nx * ny, sizeof(double));
 
     for (int y = 0; y < ny; y++) {
         for (int x = 0; x < nx; x++) {
@@ -142,6 +142,10 @@ int main(int argc, char* argv[]) {
     FILE* file = std::fopen("./main.dat", "w");
     std::fwrite(&u[prevIndex][0], sizeof(double), nx * ny, file);
     std::fclose(file);
+
+    free(u0);
+    free(u1);
+    free(p);
 
     return EXIT_SUCCESS;
 }
