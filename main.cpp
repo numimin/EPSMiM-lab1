@@ -15,7 +15,7 @@ double f(int n, double tau) {
 
 int main(int argc, char* argv[]) {
     if (argc != 6) {
-        std::cout << "Usage: ./main Nx Ny Nt" << std::endl;
+        std::cout << "Usage: ./lab1 Nx Ny Nt Sx Sy" << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -57,7 +57,6 @@ int main(int argc, char* argv[]) {
     }
 
     for (int i = 0; i < nt; i++) {
-        double maxElement = 0;
         for (int y = 1; y < ny - 1; y++) {
             for (int x = 1; x < nx - 1; x++) {
                 int index = y * nx + x;
@@ -69,27 +68,21 @@ int main(int argc, char* argv[]) {
                 double pc = p[index];
                 double pd = p[(y - 1) * nx + x];
                 double pdl = p[(y - 1) * nx + x - 1];
-                double pl =p[y * nx + x - 1];
-                double fij = 0;
-                if (x == sx && y == sy) {
-                    fij = f(i, tau);
-                }
+                double pl = p[y * nx + x - 1];
 
                 u[prevIndex][index] = 2 * uc - u[prevIndex][index] + (tau * tau) * (
-                        fij + ((ur - uc) * (pd + pc) + (ul - uc) * (pdl + pl)) * hxrec +
+                        ((ur - uc) * (pd + pc) + (ul - uc) * (pdl + pl)) * hxrec +
                                 ((ut - uc) * (pl + pc) + (ud - uc) * (pdl + pd)) * hyrec
                         );
-
-                if (u[prevIndex][index] > maxElement) {
-                    maxElement = u[prevIndex][index];
-                }
             }
         }
 
-        std::swap(prevIndex, currIndex);
+        u[prevIndex][sy * nx + sx] += f(i, tau);
 
         std::cout << i << std::endl;
-        std::cout << maxElement << std::endl;    
+        std::cout << *std::max_element(u[prevIndex].begin(), u[prevIndex].end()) << std::endl;
+        
+        std::swap(prevIndex, currIndex);    
     }
 
     const auto end = std::chrono::high_resolution_clock::now();
