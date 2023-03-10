@@ -17,6 +17,78 @@ double f(int n, double tau) {
     return std::exp((- a * a) / (gamma * gamma)) * std::sin(a);
 }
 
+const __m256d two = _mm256_set_pd(2, 2, 2, 2);
+
+void calculate(std::vector<double>& prev, const std::vector<double>& curr,
+    const std::vector<double>& p,
+    int y, int x, int actual_nx,
+    __m256d m_hxrec, __m256d m_hyrec, __m256d m_tau) {
+
+    int index = y * actual_nx + x;
+    __m256d uc = _mm256_loadu_pd(&curr[index]);
+    __m256d ur = _mm256_loadu_pd(&curr[y * actual_nx + x + 1]);
+    __m256d ul = _mm256_loadu_pd(&curr[y * actual_nx + x - 1]);
+    __m256d ut = _mm256_loadu_pd(&curr[(y + 1) * actual_nx + x]);
+    __m256d ud = _mm256_loadu_pd(&curr[(y - 1) * actual_nx + x]);
+    __m256d pc = _mm256_loadu_pd(&p[index]);
+    __m256d pd = _mm256_loadu_pd(&p[(y - 1) * actual_nx + x]);
+    __m256d pdl = _mm256_loadu_pd(&p[(y - 1) * actual_nx + x - 1]);
+    __m256d pl = _mm256_loadu_pd(&p[y * actual_nx + x - 1]);
+
+    __m256d uPrev = _mm256_loadu_pd(&prev[index]);
+
+    __m256d uc2 = _mm256_mul_pd(two, uc);
+    __m256d uc2_uprev = _mm256_sub_pd(uc2, uPrev);
+
+    __m256d ur_uc = _mm256_sub_pd(ur, uc);
+    __m256d pd_pc = _mm256_add_pd(pd, pc);
+    __m256d prod1 = _mm256_mul_pd(ur_uc, pd_pc);
+
+    __m256d ul_uc = _mm256_sub_pd(ul, uc);
+    __m256d pdl_pl = _mm256_add_pd(pdl, pl);
+    __m256d prod2 = _mm256_mul_pd(ul_uc, pdl_pl);
+
+    __m256d sum1 = _mm256_add_pd(prod1, prod2);
+    sum1 = _mm256_mul_pd(sum1, m_hxrec);
+
+    __m256d ut_uc = _mm256_sub_pd(ut, uc);
+    __m256d pl_pc = _mm256_add_pd(pl, pc);
+    prod1 = _mm256_mul_pd(ut_uc, pl_pc);
+
+    __m256d ud_uc = _mm256_sub_pd(ud, uc);
+    __m256d pdl_pd = _mm256_add_pd(pdl, pd);
+    prod2 = _mm256_mul_pd(ud_uc, pdl_pd);
+
+    __m256d sum2 = _mm256_add_pd(prod1, prod2);
+    sum2 = _mm256_mul_pd(sum2, m_hyrec);
+
+    __m256d sum3 = _mm256_add_pd(sum1, sum2);
+    sum3 = _mm256_mul_pd(m_tau, sum3);
+    sum3 = _mm256_mul_pd(m_tau, sum3);
+
+    __m256d result = _mm256_add_pd(uc2_uprev, sum3);
+
+    _mm256_storeu_pd(&prev[index], result);
+}
+
+void one_iteration(int i, int ny, int nx, int actual_nx, 
+        int sx, int sy,
+        std::vector<double>* u, const std::vector<double>& p, 
+        double tau, int currIndex, int prevIndex,
+        __m256d m_hxrec, __m256d m_hyrec, __m256d m_tau) 
+{
+
+    for (int y = 1; y < ny - 1; y++) {
+        for (int x = 1; x < nx - 1; x += 4) {
+            calculate(u[prevIndex], u[currIndex], p, 
+                y, x, actual_nx, 
+                m_hxrec, m_hyrec, m_tau);
+        }
+    }
+
+    u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i, tau);
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 6) {
         std::cout << "Usage: ./lab1 Nx Ny Nt Sx Sy" << std::endl;
@@ -44,7 +116,6 @@ int main(int argc, char* argv[]) {
 
     const __m256d m_hxrec = _mm256_set_pd(hxrec, hxrec, hxrec, hxrec);
     const __m256d m_hyrec = _mm256_set_pd(hyrec, hyrec, hyrec, hyrec);
-    const __m256d two = _mm256_set_pd(2, 2, 2, 2);
 
     const double tau = (nx <= 1000 && ny <= 1000) ? 0.01 : 0.001;
 
@@ -69,59 +140,53 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    for (int i = 0; i < nt; i++) {
-        for (int y = 1; y < ny - 1; y++) {
+    for (int i = 0; i < nt; i += 2) {
+        for (int y = 1; y < 2; y++) {
             for (int x = 1; x < nx - 1; x += 4) {
-                int index = y * actual_nx + x;
-                __m256d uc = _mm256_loadu_pd(&u[currIndex][index]);
-                __m256d ur = _mm256_loadu_pd(&u[currIndex][y * actual_nx + x + 1]);
-                __m256d ul = _mm256_loadu_pd(&u[currIndex][y * actual_nx + x - 1]);
-                __m256d ut = _mm256_loadu_pd(&u[currIndex][(y + 1) * actual_nx + x]);
-                __m256d ud = _mm256_loadu_pd(&u[currIndex][(y - 1) * actual_nx + x]);
-                __m256d pc = _mm256_loadu_pd(&p[index]);
-                __m256d pd = _mm256_loadu_pd(&p[(y - 1) * actual_nx + x]);
-                __m256d pdl = _mm256_loadu_pd(&p[(y - 1) * actual_nx + x - 1]);
-                __m256d pl = _mm256_loadu_pd(&p[y * actual_nx + x - 1]);
+                calculate(u[prevIndex], u[currIndex], p, 
+                    y, x, actual_nx, 
+                    m_hxrec, m_hyrec, m_tau);
+            }
 
-                __m256d uPrev = _mm256_loadu_pd(&u[prevIndex][index]);
-
-                __m256d uc2 = _mm256_mul_pd(two, uc);
-                __m256d uc2_uprev = _mm256_sub_pd(uc2, uPrev);
-
-                __m256d ur_uc = _mm256_sub_pd(ur, uc);
-                __m256d pd_pc = _mm256_add_pd(pd, pc);
-                __m256d prod1 = _mm256_mul_pd(ur_uc, pd_pc);
-
-                __m256d ul_uc = _mm256_sub_pd(ul, uc);
-                __m256d pdl_pl = _mm256_add_pd(pdl, pl);
-                __m256d prod2 = _mm256_mul_pd(ul_uc, pdl_pl);
-
-                __m256d sum1 = _mm256_add_pd(prod1, prod2);
-                sum1 = _mm256_mul_pd(sum1, m_hxrec);
-
-                __m256d ut_uc = _mm256_sub_pd(ut, uc);
-                __m256d pl_pc = _mm256_add_pd(pl, pc);
-                prod1 = _mm256_mul_pd(ut_uc, pl_pc);
-
-                __m256d ud_uc = _mm256_sub_pd(ud, uc);
-                __m256d pdl_pd = _mm256_add_pd(pdl, pd);
-                prod2 = _mm256_mul_pd(ud_uc, pdl_pd);
-
-                __m256d sum2 = _mm256_add_pd(prod1, prod2);
-                sum2 = _mm256_mul_pd(sum2, m_hyrec);
-
-                __m256d sum3 = _mm256_add_pd(sum1, sum2);
-                sum3 = _mm256_mul_pd(m_tau, sum3);
-                sum3 = _mm256_mul_pd(m_tau, sum3);
-
-                __m256d result = _mm256_add_pd(uc2_uprev, sum3);
-
-                _mm256_storeu_pd(&u[prevIndex][index], result);
+            if (y == sy) {
+                u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i, tau);                
             }
         }
 
-        u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i, tau);
+        for (int y = 3; y < ny - 1; y++) {
+            for (int x = 1; x < nx - 1; x += 4) {
+                calculate(u[currIndex], u[prevIndex], p, 
+                    y - 2, x, actual_nx, 
+                    m_hxrec, m_hyrec, m_tau);
+            }
 
+            if (y - 2 == sy) {
+                u[currIndex][sy * actual_nx + sx] += tau * tau * f(i + 1, tau);                
+            }
+
+            for (int x = 1; x < nx - 1; x += 4) {
+                calculate(u[prevIndex], u[currIndex], p, 
+                    y, x, actual_nx, 
+                    m_hxrec, m_hyrec, m_tau);
+            }
+
+            if (y == sy) {
+                u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i, tau);                
+            }
+        }
+
+        for (int y = ny - 3; y < ny - 1; y++) {
+            for (int x = 1; x < nx - 1; x += 4) {
+                calculate(u[currIndex], u[prevIndex], p, 
+                    y, x, actual_nx, 
+                    m_hxrec, m_hyrec, m_tau);
+            }
+
+            if (y == sy) {
+                u[currIndex][sy * actual_nx + sx] += tau * tau * f(i + 1, tau);                
+            }
+        }
+            
         std::cout << i << std::endl;
         double maxElement = 0;
         for (int j = 0; j < nx * ny; j++) {
@@ -129,9 +194,23 @@ int main(int argc, char* argv[]) {
                 maxElement = u[prevIndex][j];
             }
         }
-        std::cout << maxElement << std::endl;
-        
-        std::swap(prevIndex, currIndex);    
+        std::cout << maxElement << std::endl;        
+    }
+
+    for (int i = (nt / 2) * 2; i < nt; i++) {
+        for (int y = 1; y < ny - 1; y++) {
+            for (int x = 1; x < nx - 1; x += 4) {
+                calculate(u[prevIndex], u[currIndex], p, 
+                    y, x, actual_nx, 
+                    m_hxrec, m_hyrec, m_tau);
+            }
+
+            if (y == sy) {
+                u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i, tau);                
+            }
+        }
+
+        std::swap(prevIndex, currIndex);
     }
 
     const auto end = std::chrono::high_resolution_clock::now();
