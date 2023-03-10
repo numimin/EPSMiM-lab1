@@ -53,11 +53,11 @@ int main(int argc, char* argv[]) {
     int prevIndex = 0;
     int currIndex = 1;
 
-    double* u0 = (double*) aligned_alloc(32, nx * ny * sizeof(double));
-    double* u1 = (double*) aligned_alloc(32, nx * ny * sizeof(double));
+    const int actual_nx = nx + 4;
 
-    double* u[] = {u0, u1};
-    double* p = (double*) calloc(nx * ny, sizeof(double));
+    std::vector<double> u[] {std::vector<double>(actual_nx * ny, 0), std::vector<double>(actual_nx * ny, 0)};
+
+    std::vector<double> p(actual_nx * ny);
 
     for (int y = 0; y < ny; y++) {
         for (int x = 0; x < nx; x++) {
@@ -71,17 +71,17 @@ int main(int argc, char* argv[]) {
 
     for (int i = 0; i < nt; i++) {
         for (int y = 1; y < ny - 1; y++) {
-            for (int x = 1; x < nx - 1 - 4; x+= 4) {
-                int index = y * nx + x;
+            for (int x = 1; x < nx - 1; x += 4) {
+                int index = y * actual_nx + x;
                 __m256d uc = _mm256_loadu_pd(&u[currIndex][index]);
-                __m256d ur = _mm256_loadu_pd(&u[currIndex][y * nx + x + 1]);
-                __m256d ul = _mm256_loadu_pd(&u[currIndex][y * nx + x - 1]);
-                __m256d ut = _mm256_loadu_pd(&u[currIndex][(y + 1) * nx + x]);
-                __m256d ud = _mm256_loadu_pd(&u[currIndex][(y - 1) * nx + x]);
+                __m256d ur = _mm256_loadu_pd(&u[currIndex][y * actual_nx + x + 1]);
+                __m256d ul = _mm256_loadu_pd(&u[currIndex][y * actual_nx + x - 1]);
+                __m256d ut = _mm256_loadu_pd(&u[currIndex][(y + 1) * actual_nx + x]);
+                __m256d ud = _mm256_loadu_pd(&u[currIndex][(y - 1) * actual_nx + x]);
                 __m256d pc = _mm256_loadu_pd(&p[index]);
-                __m256d pd = _mm256_loadu_pd(&p[(y - 1) * nx + x]);
-                __m256d pdl = _mm256_loadu_pd(&p[(y - 1) * nx + x - 1]);
-                __m256d pl = _mm256_loadu_pd(&p[y * nx + x - 1]);
+                __m256d pd = _mm256_loadu_pd(&p[(y - 1) * actual_nx + x]);
+                __m256d pdl = _mm256_loadu_pd(&p[(y - 1) * actual_nx + x - 1]);
+                __m256d pl = _mm256_loadu_pd(&p[y * actual_nx + x - 1]);
 
                 __m256d uPrev = _mm256_loadu_pd(&u[prevIndex][index]);
 
@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        u[prevIndex][sy * nx + sx] += f(i, tau);
+        u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i, tau);
 
         std::cout << i << std::endl;
         double maxElement = 0;
@@ -140,12 +140,10 @@ int main(int argc, char* argv[]) {
     std::cout << duration.count() / 1000.0 << "s" << std::endl;
 
     FILE* file = std::fopen("./main.dat", "w");
-    std::fwrite(&u[prevIndex][0], sizeof(double), nx * ny, file);
+    for (int y = 0; y < ny; y++) {
+        std::fwrite(&u[prevIndex][y * actual_nx], sizeof(double), nx, file);        
+    }
     std::fclose(file);
-
-    free(u0);
-    free(u1);
-    free(p);
 
     return EXIT_SUCCESS;
 }

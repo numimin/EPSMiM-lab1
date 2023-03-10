@@ -1,9 +1,6 @@
 #!/bin/bash
 
-cmake .
-make
-mv lab1 cmake-build-debug
-cd cmake-build-debug
+g++ -O3 -march=native -o lab1 main.cpp
 ./lab1 500 500 500 1 1
 gnuplot script.txt
 feh main.dat.png
