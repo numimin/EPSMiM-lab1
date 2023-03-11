@@ -22,7 +22,8 @@ const __m256d two = _mm256_set_pd(2, 2, 2, 2);
 void calculate(std::vector<double>& prev, const std::vector<double>& curr,
     const std::vector<double>& p,
     int y, int x, int actual_nx,
-    __m256d m_hxrec, __m256d m_hyrec, __m256d m_tau) {
+    __m256d m_hxrec, __m256d m_hyrec, __m256d m_tau) 
+{
     int index = y * actual_nx + x;
     __m256d uc = _mm256_loadu_pd(&curr[index]);
     __m256d ur = _mm256_loadu_pd(&curr[y * actual_nx + x + 1]);
@@ -121,6 +122,29 @@ int main(int argc, char* argv[]) {
             }
         }
     }
+
+/*    for (int i = 0; i < nt; i++) {
+        for (int y = 1; y < ny - 1; y++) {
+            for (int x = 1; x < nx - 1; x += 4) {
+                calculate(u[prevIndex], u[currIndex], p, 
+                        y, x, actual_nx, 
+                        m_hxrec, m_hyrec, m_tau);
+            }
+        }
+
+        u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i, tau);
+
+        std::cout << i << std::endl;
+        double maxElement = 0;
+        for (int j = 0; j < nx * ny; j++) {
+            if (maxElement < u[prevIndex][j]) {
+                maxElement = u[prevIndex][j];
+            }
+        }
+        std::cout << maxElement << std::endl;
+
+        std::swap(currIndex, prevIndex);
+    }*/
 
     for (int i = 0; i < nt; i += iterations) {
         for (int iter = 0; iter < iterations - 1; iter++) {
