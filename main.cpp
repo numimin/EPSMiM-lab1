@@ -167,12 +167,12 @@ int main(int argc, char* argv[]) {
                 u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i, tau);                
             }
 
-            if (iterations != 3) {
+            if (iterations % 2 == 0) {
                 std::swap(currIndex, prevIndex);                
             }
         }
 
-        if (iterations == 3) {
+        if (iterations % 2 == 1) {
             std::swap(currIndex, prevIndex);
         }
 
