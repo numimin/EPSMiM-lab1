@@ -123,67 +123,17 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    for (int i = 0; i < nt; i += iterations) {
-        for (int iter = 0; iter < iterations - 1; iter++) {
-            for (int y = 1; y < iterations + 1 - iter; y++) {
-                for (int x = 1; x < nx - 1; x += 4) {
-                    calculate(u[prevIndex], u[currIndex], p, 
-                        y, x, actual_nx, 
-                        m_hxrec, m_hyrec, m_tau);
-                }
-
-                if (y == sy) {
-                    u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + iter, tau);                
-                }
-            }
-            std::swap(currIndex, prevIndex);
-        }
-
-        for (int y = iterations + 1; y < ny - 1; y++) {
-            for (int iter = 0; iter < iterations - 1; iter++) {
-                for (int x = 1; x < nx - 1; x += 4) {
-                    calculate(u[prevIndex], u[currIndex], p, 
-                        y - iterations + iter, x, actual_nx, 
-                        m_hxrec, m_hyrec, m_tau);
-                }
-
-                if (y - iterations + iter == sy) {
-                    u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + iterations - 1 - iter, tau);                
-                }
-                std::swap(currIndex, prevIndex);
-            }
-
+    for (int i = 0; i < nt; i++) {
+        for (int y = 1; y < ny - 1; y++) {
             for (int x = 1; x < nx - 1; x += 4) {
                 calculate(u[prevIndex], u[currIndex], p, 
-                    y, x, actual_nx, 
-                    m_hxrec, m_hyrec, m_tau);
-            }
-
-            if (y == sy) {
-                u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i, tau);                
-            }
-        }
-
-        if (iterations % 2 == 1) {
-            std::swap(currIndex, prevIndex);
-        }
-
-        for (int iter = iterations - 2; iter >= 0; iter--) {
-            for (int y = ny - iterations - 1 + iter; y < ny - 1; y++) {
-                for (int x = 1; x < nx - 1; x += 4) {
-                    calculate(u[prevIndex], u[currIndex], p, 
                         y, x, actual_nx, 
                         m_hxrec, m_hyrec, m_tau);
-                }
-
-                if (y == sy) {
-                    u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + 1, tau);                
-                }
             }
-
-            std::swap(currIndex, prevIndex);
         }
-            
+
+        u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i, tau);
+
         std::cout << i << std::endl;
         double maxElement = 0;
         for (int j = 0; j < nx * ny; j++) {
@@ -192,26 +142,8 @@ int main(int argc, char* argv[]) {
             }
         }
         std::cout << maxElement << std::endl;
-    }
 
-    if (iterations % 2 == 1 && (nt / iterations) % 2 == 1) {
-        std::swap(prevIndex, currIndex);
-    }
-
-    for (int i = (nt / iterations) * iterations; i < nt; i++) {
-        for (int y = 1; y < ny - 1; y++) {
-            for (int x = 1; x < nx - 1; x += 4) {
-                calculate(u[prevIndex], u[currIndex], p, 
-                    y, x, actual_nx, 
-                    m_hxrec, m_hyrec, m_tau);
-            }
-
-            if (y == sy) {
-                u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i, tau);                
-            }
-        }
-
-        std::swap(prevIndex, currIndex);
+        std::swap(currIndex, prevIndex);
     }
 
     const auto end = std::chrono::high_resolution_clock::now();
