@@ -206,7 +206,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (iterations % 2 == 1 && (nt / iterations) % 2 == 1) {
+    /*if (iterations % 2 == 1 && (nt / iterations) % 2 == 1) {
         std::swap(prevIndex, currIndex);
     }
 
@@ -224,7 +224,7 @@ int main(int argc, char* argv[]) {
         }
 
         std::swap(prevIndex, currIndex);
-    }
+    }*/
 
     const auto end = std::chrono::high_resolution_clock::now();
     const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
