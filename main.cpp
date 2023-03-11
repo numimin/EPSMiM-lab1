@@ -23,7 +23,6 @@ void calculate(std::vector<double>& prev, const std::vector<double>& curr,
     const std::vector<double>& p,
     int y, int x, int actual_nx,
     __m256d m_hxrec, __m256d m_hyrec, __m256d m_tau) {
-
     int index = y * actual_nx + x;
     __m256d uc = _mm256_loadu_pd(&curr[index]);
     __m256d ur = _mm256_loadu_pd(&curr[y * actual_nx + x + 1]);
@@ -116,9 +115,9 @@ int main(int argc, char* argv[]) {
     for (int y = 0; y < ny; y++) {
         for (int x = 0; x < nx; x++) {
             if (x < nx / 2) {
-                p[y * nx + x] = 0.1 * 0.1;
+                p[y * actual_nx + x] = 0.1 * 0.1;
             } else {
-                p[y * nx + x] = 0.2 * 0.2;
+                p[y * actual_nx + x] = 0.2 * 0.2;
             }
         }
     }
@@ -233,7 +232,7 @@ int main(int argc, char* argv[]) {
 
     FILE* file = std::fopen("./main.dat", "w");
     for (int y = 0; y < ny; y++) {
-        std::fwrite(&u[prevIndex][y * actual_nx], sizeof(double), nx, file);        
+        std::fwrite(&u[currIndex][y * actual_nx], sizeof(double), nx, file);        
     }
     std::fclose(file);
 
