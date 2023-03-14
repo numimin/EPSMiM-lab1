@@ -124,6 +124,7 @@ int main(int argc, char* argv[]) {
     }
 
     for (int i = 0; i < nt; i += iterations) {
+        std::vector<int> first_iteration_list {};
         int first_iterations = 1;
         for (int iter = 0; iter < iterations - 1; iter++) {
             if (iter % 2 == 0) {
@@ -135,6 +136,7 @@ int main(int argc, char* argv[]) {
 
         const int max_first_iterations = first_iterations;
         for (int iter = iterations - 2; iter >= 0; iter--) {
+            first_iteration_list.push_back(first_iterations);
             for (int y = 1; y < first_iterations + 1; y++) {
                 for (int x = 1; x < nx - 1; x += 4) {
                     calculate(u[prevIndex], u[currIndex], p, 
@@ -154,6 +156,8 @@ int main(int argc, char* argv[]) {
             }
             std::swap(currIndex, prevIndex);
         }
+
+        first_iteration_list.push_back(1);
 
         for (int y = max_first_iterations + 1; y < ny - 1; y++) {
             int curr_y_delta = max_first_iterations;
@@ -194,8 +198,8 @@ int main(int argc, char* argv[]) {
             std::swap(currIndex, prevIndex);
         }
 
-        /*for (int iter = iterations - 2; iter >= 0; iter--) {
-            for (int y = ny - iterations - 1 + iter; y < ny - 1; y++) {
+        for (int iter = 0; iter < iterations - 1; iter++) {
+            for (int y = ny - (max_first_iterations - first_iteration_list[iter]) - 1; y < ny - 1; y++) {
                 for (int x = 1; x < nx - 1; x += 4) {
                     calculate(u[prevIndex], u[currIndex], p, 
                         y, x, actual_nx, 
@@ -203,12 +207,12 @@ int main(int argc, char* argv[]) {
                 }
 
                 if (y == sy) {
-                    u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + 1, tau);                
+                    u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + iter, tau);                
                 }
             }
 
             std::swap(currIndex, prevIndex);
-        }*/
+        }
             
         std::cout << i << std::endl;
         double maxElement = 0;
