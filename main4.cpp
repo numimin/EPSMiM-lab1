@@ -125,7 +125,7 @@ int main(int argc, char* argv[]) {
 
     for (int i = 0; i < nt; i += 4) {
         //Prepare data
-        for (int y = 1; y < 5; y++) {
+        for (int y = 1; y < 6; y++) {
             for (int x = 1; x < nx - 1; x += 4) {
                 calculate(u[prevIndex], u[currIndex], p, 
                     y, x, actual_nx, 
@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        for (int y = 1; y < 4; y++) {
+        for (int y = 1; y < 5; y++) {
             for (int x = 1; x < nx - 1; x += 4) {
                 calculate(u[currIndex], u[prevIndex], p, 
                     y, x, actual_nx, 
@@ -162,14 +162,14 @@ int main(int argc, char* argv[]) {
         }
 
         //main loop
-        for (int y = 5; y < ny - 1; y++) {
+        for (int y = 6; y < ny - 1; y++) {
             for (int x = 1; x < nx - 1; x += 4) {
                 calculate(u[currIndex], u[prevIndex], p, 
-                    y - 4, x, actual_nx, 
+                    y - 5, x, actual_nx, 
                     m_hxrec, m_hyrec, m_tau);
             }
 
-            if (y - 4 == sy) {
+            if (y - 5 == sy) {
                 u[currIndex][sy * actual_nx + sx] += tau * tau * f(i + 3, tau);                
             }
 
@@ -185,11 +185,11 @@ int main(int argc, char* argv[]) {
 
             for (int x = 1; x < nx - 1; x += 4) {
                 calculate(u[currIndex], u[prevIndex], p, 
-                    y - 2, x, actual_nx, 
+                    y - 1, x, actual_nx, 
                     m_hxrec, m_hyrec, m_tau);
             }
 
-            if (y - 2 == sy) {
+            if (y - 1 == sy) {
                 u[currIndex][sy * actual_nx + sx] += tau * tau * f(i + 1, tau);                
             }
 
