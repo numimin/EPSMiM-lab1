@@ -130,6 +130,7 @@ int main(int argc, char* argv[]) {
                         y, x, actual_nx, 
                         m_hxrec, m_hyrec, m_tau);
             }
+            u[prevIndex][y * actual_nx + nx - 1] = 0;
         }
 
         u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i, tau);
