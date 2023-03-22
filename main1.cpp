@@ -18,8 +18,9 @@ double f(int n, double tau) {
 }
 
 const __m256d two = _mm256_set_pd(2, 2, 2, 2);
+const __m256d zeros = _mm256_set_pd(0, 0, 0, 0);
 
-void calculate(std::vector<double>& prev, const std::vector<double>& curr,
+__m256d calculate(std::vector<double>& prev, const std::vector<double>& curr,
     const std::vector<double>& p,
     int y, int x, int actual_nx,
     __m256d m_hxrec, __m256d m_hyrec, __m256d m_tau) 
@@ -69,6 +70,14 @@ void calculate(std::vector<double>& prev, const std::vector<double>& curr,
     __m256d result = _mm256_add_pd(uc2_uprev, sum3);
 
     _mm256_storeu_pd(&prev[index], result);
+
+    __m256d minus_result = _mm256_sub_pd(zeros, result);
+    __m256d abs_result = _mm256_max_pd(result, minus_result);
+
+    __m256d permuted_result = _mm256_permute2f128_pd(abs_result, abs_result, 1);
+    __m256d m1 = _mm256_max_pd(abs_result, permuted_result);
+    __m256d m2 = _mm256_permute_pd(m1, 5);
+    return _mm256_max_pd(m1, m2);
 }
 
 int main(int argc, char* argv[]) {
@@ -124,11 +133,13 @@ int main(int argc, char* argv[]) {
     }
 
     for (int i = 0; i < nt; i++) {
+        double maxElement = 0;
         for (int y = 1; y < ny - 1; y++) {
             for (int x = 1; x < nx - 1; x += 4) {
-                calculate(u[prevIndex], u[currIndex], p, 
+                __m256d newElement = calculate(u[prevIndex], u[currIndex], p, 
                         y, x, actual_nx, 
                         m_hxrec, m_hyrec, m_tau);
+                maxElement = std::max(maxElement, *((double*)&newElement));
             }
             u[prevIndex][y * actual_nx + nx - 1] = 0;
         }
@@ -136,12 +147,6 @@ int main(int argc, char* argv[]) {
         u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i, tau);
 
         std::cout << i << std::endl;
-        double maxElement = 0;
-        for (int j = 0; j < nx * ny; j++) {
-            if (maxElement < u[prevIndex][j]) {
-                maxElement = u[prevIndex][j];
-            }
-        }
         std::cout << maxElement << std::endl;
 
         std::swap(currIndex, prevIndex);

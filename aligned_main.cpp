@@ -43,21 +43,30 @@ __m256d shift_r(__m256d a, __m256d b) {
     return c;
 }
 
+void gather(__m256d* p0, __m256d* p1, __m256d a) {
+    __m128d p00 = *(__m128d*)p0;
+    __m128d p10 = *(__m128d*)p1;
+    __m128d p11 = *((__m128d*)p1 + 1);
+    __m128d a0 = *(__m128d*)&a;
+    __m128d a1 = *((__m128d*)&a + 1);
+    __m128d* p0Ptr = (__m128d*)p0;
+    __m128d* p1Ptr = (__m128d*)p1;
+    p0Ptr[0] = _mm_shuffle_pd(p00, a0, 4);
+    p0Ptr[1] = _mm_shuffle_pd(a0, a1, 1);
+    p1Ptr[0] = _mm_shuffle_pd(a1, p10, 3);
+}
+
 //All input parameters are aligned
 //We are aligned + 1(double)
-__m256d calculate(double* prev, const double* curr,
-    const double* p,
-    int y, int x, int actual_nx,
-    __m256d prev0, __m256d prev1, 
+__m256d calculate(__m256d* prev0, __m256d* prev1, 
     __m256d curr0, __m256d curr1, 
     __m256d curr_top0, __m256d curr_top1,
      __m256d curr_down0, __m256d curr_down1,
     __m256d p0, __m256d p1,
     __m256d p_down0, __m256d p_down1,
-    __m256d m_hxrec, __m256d m_hyrec, __m256d m_tau,
-    double* prevOut) 
+    __m256d m_hxrec, __m256d m_hyrec, __m256d m_tau) 
 {
-    __m256d uPrev = shift(prev0, prev1);
+    __m256d uPrev = shift(*prev0, *prev1);
     __m256d uc = shift(curr0, curr1);
     __m256d ur = shift_r(curr0, curr1);
     __m256d ul = curr0;
@@ -98,7 +107,8 @@ __m256d calculate(double* prev, const double* curr,
     sum3 = _mm256_mul_pd(m_tau, sum3);
 
     __m256d result = _mm256_add_pd(uc2_uprev, sum3);
-    _mm256_storeu_pd(prevOut, result);
+    //_mm256_storeu_pd(prevOut, result);
+    gather(prev0, prev1, result);
 
     __m256d minus_result = _mm256_sub_pd(zeros, result);
     __m256d abs_result = _mm256_max_pd(result, minus_result);
@@ -173,30 +183,27 @@ int main(int argc, char* argv[]) {
         for (int y = 1; y < ny - 1; y++) {
             int vectorIndex = 0;
             int otherVectorIndex = 1;
-            __m256d prev[] {*(__m256d*)&u[prevIndex][y * actual_nx], zeros};
+            __m256d* prev[] {(__m256d*)&u[prevIndex][y * actual_nx], NULL};
             __m256d curr[] {*(__m256d*)&u[currIndex][y * actual_nx], zeros};
             __m256d curr_top[] {*(__m256d*)&u[currIndex][(y + 1) * actual_nx], zeros};
             __m256d curr_down[] {*(__m256d*)&u[currIndex][(y - 1) * actual_nx], zeros};
             __m256d p_center[] {*(__m256d*)&p[y * actual_nx], zeros};
             __m256d p_down[] {*(__m256d*)&p[(y - 1) * actual_nx], zeros};
             for (int x = 1; x < nx - 1; x += 4) {
-                prev[otherVectorIndex] = *(__m256d*)&u[prevIndex][y * actual_nx + x + 3];
+                prev[otherVectorIndex] = (__m256d*)&u[prevIndex][y * actual_nx + x + 3];
                 curr[otherVectorIndex] = *(__m256d*)&u[currIndex][y * actual_nx + x + 3];
                 curr_top[otherVectorIndex] = *(__m256d*)&u[currIndex][(y + 1) * actual_nx + x + 3];
                 curr_down[otherVectorIndex] = *(__m256d*)&u[currIndex][(y - 1) * actual_nx + x + 3];
                 p_center[otherVectorIndex] = *(__m256d*)&p[y * actual_nx + x + 3];
                 p_down[otherVectorIndex] = *(__m256d*)&p[(y - 1) * actual_nx + x + 3];
                 __m256d newElement = calculate(
-                        u[prevIndex], u[currIndex], p,
-                        y, x, actual_nx,
                         prev[vectorIndex], prev[otherVectorIndex],
                         curr[vectorIndex], curr[otherVectorIndex],
                         curr_top[vectorIndex], curr_top[otherVectorIndex],
                         curr_down[vectorIndex], curr_down[otherVectorIndex],
                         p_center[vectorIndex], p_center[otherVectorIndex],
                         p_down[vectorIndex], p_down[otherVectorIndex],
-                        m_hxrec, m_hyrec, m_tau,
-                        &u[prevIndex][y * actual_nx + x]);
+                        m_hxrec, m_hyrec, m_tau);
                 maxElement = std::max(maxElement, *((double*)&newElement));
                 std::swap(vectorIndex, otherVectorIndex);
             }
