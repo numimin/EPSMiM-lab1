@@ -18,7 +18,6 @@ double f(int n, double tau) {
 }
 
 const __m256d two = _mm256_set_pd(2, 2, 2, 2);
-const __m256d one_hudredth = _mm256_set_pd(0.01, 0.01, 0.01, 0.01);
 const __m256d zeros = _mm256_set_pd(0, 0, 0, 0);
 
 __m256d shift(__m256d a, __m256d b) {
@@ -34,15 +33,10 @@ __m256d shift_r(__m256d a, __m256d b) {
 }
 
 void gather(__m256d* p0, __m256d* p1, __m256d a) {
-    __m128d p00 = *(__m128d*)p0;
-    __m128d p10 = *(__m128d*)p1;
-    __m128d a0 = *(__m128d*)&a;
-    __m128d a1 = *((__m128d*)&a + 1);
-    __m128d* p0Ptr = (__m128d*)p0;
-    __m128d* p1Ptr = (__m128d*)p1;
-    p0Ptr[0] = _mm_shuffle_pd(p00, a0, 4);
-    p0Ptr[1] = _mm_shuffle_pd(a0, a1, 1);
-    p1Ptr[0] = _mm_shuffle_pd(a1, p10, 3);
+    auto c = _mm256_permute4x64_pd(a, 147);
+    *p0 = _mm256_blend_pd(*p0, c, 14);
+    auto d = _mm256_permute4x64_pd(a, 255);
+    *p1 = _mm256_blend_pd(d, *p1, 14);
 }
 
 __m256d calculate(__m256d* prev0, __m256d* prev1, 
