@@ -4,26 +4,39 @@
 #include <smmintrin.h>
 #include <immintrin.h>
 
+template<int Shift>
 __m256d shift(__m256d a, __m256d b) {
-	__m128d a0 = *(__m128d*)&a;
-	__m128d a1 = *((__m128d*)&a + 1);
-	__m128d b0 = *(__m128d*)&b;
-	__m256d c;
-	__m128d* cPtr = (__m128d*)&c;
-	cPtr[0] = _mm_shuffle_pd(a0, a1, 5); 
-	cPtr[1] = _mm_shuffle_pd(a1, b0, 1); 
-	return c;
+	const auto c = _mm256_permute4x64_pd(a, 57); //9(1200), 57 (1230)
+	const auto d = _mm256_permute4x64_pd(b, 0); //0(4444)
+	return _mm256_blend_pd(c, d, 8);
 }
 
+template<int Shift>
 __m256d shift_r(__m256d a, __m256d b) {
-	__m128d a0 = *(__m128d*)&a;
-	__m128d a1 = *((__m128d*)&a + 1);
-	__m128d b0 = *(__m128d*)&b;
-	__m256d c;
-	__m128d* cPtr = (__m128d*)&c;
-	cPtr[0] = a1; 
-	cPtr[1] = b0; 
-	return c;
+	auto c = _mm256_permute4x64_pd(a, 190);
+	auto d = _mm256_permute4x64_pd(b, 64);
+	return _mm256_blend_pd(c, d, 12);
+}
+
+template<int Shift>
+void iterate(__m256d a, __m256d b) {
+	double* c = (double*) aligned_alloc(32, 4 * sizeof(double));
+	*((__m256d*)c) = shift_r<Shift>(a, b);
+	std::cout << "Iteration " << Shift << std::endl;
+	for (int i = 0; i < 4; i++) {
+		std::cout << c[i] << std::endl;
+	}
+	iterate<Shift - 1>(a, b);
+}
+
+template<>
+void iterate<0>(__m256d a, __m256d b) {
+	double* c = (double*) aligned_alloc(32, 4 * sizeof(double));
+	*((__m256d*)c) = shift_r<0>(a, b);
+	std::cout << "Iteration " << 0 << std::endl;
+	for (int i = 0; i < 4; i++) {
+		std::cout << c[i] << std::endl;
+	}
 }
 
 void gather(__m256d* p0, __m256d* p1, __m256d a) {
@@ -40,7 +53,7 @@ void gather(__m256d* p0, __m256d* p1, __m256d a) {
 }
 
 int main() {
-	/*double* a = (double*) aligned_alloc(32, 4 * sizeof(double));
+	double* a = (double*) aligned_alloc(32, 4 * sizeof(double));
 	double* b = (double*) aligned_alloc(32, 4 * sizeof(double));
 	for (int i = 0; i < 4; i++) {
 		a[i] = i;
@@ -48,13 +61,9 @@ int main() {
 	}
 	__m256d va = *(__m256d*)a;
 	__m256d vb = *(__m256d*)b;
-	double* c = (double*) aligned_alloc(32, 4 * sizeof(double));
-	*((__m256d*)c) = shift(va, vb);
-	for (int i = 0; i < 4; i++) {
-		std::cout << c[i] << std::endl;
-	}*/
+	iterate<15>(va, vb);
 
-	double* a = (double*) aligned_alloc(32, 4 * sizeof(double));
+	/*double* a = (double*) aligned_alloc(32, 4 * sizeof(double));
 	double* p0 = (double*) aligned_alloc(32, 4 * sizeof(double));
 	double* p1 = (double*) aligned_alloc(32, 4 * sizeof(double));
 	for (int i = 0; i < 4; i++) {
@@ -72,5 +81,5 @@ int main() {
 	}
 	for (int i = 0; i < 4; i++) {
 		std::cout << p1[i] << std::endl;
-	}
+	}*/
 }

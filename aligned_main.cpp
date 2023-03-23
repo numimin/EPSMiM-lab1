@@ -22,31 +22,20 @@ const __m256d one_hudredth = _mm256_set_pd(0.01, 0.01, 0.01, 0.01);
 const __m256d zeros = _mm256_set_pd(0, 0, 0, 0);
 
 __m256d shift(__m256d a, __m256d b) {
-    __m128d a0 = *(__m128d*)&a;
-    __m128d a1 = *((__m128d*)&a + 1);
-    __m128d b0 = *(__m128d*)&b;
-    __m256d c;
-    __m128d* cPtr = (__m128d*)&c;
-    cPtr[0] = _mm_shuffle_pd(a0, a1, 5); 
-    cPtr[1] = _mm_shuffle_pd(a1, b0, 1); 
-    return c;
+    const auto c = _mm256_permute4x64_pd(a, 57);
+    const auto d = _mm256_permute4x64_pd(b, 0);
+    return _mm256_blend_pd(c, d, 8);
 }
 
 __m256d shift_r(__m256d a, __m256d b) {
-    __m128d a0 = *(__m128d*)&a;
-    __m128d a1 = *((__m128d*)&a + 1);
-    __m128d b0 = *(__m128d*)&b;
-    __m256d c;
-    __m128d* cPtr = (__m128d*)&c;
-    cPtr[0] = a1; 
-    cPtr[1] = b0; 
-    return c;
+    const auto c = _mm256_permute4x64_pd(a, 190);
+    const auto d = _mm256_permute4x64_pd(b, 64);
+    return _mm256_blend_pd(c, d, 12);
 }
 
 void gather(__m256d* p0, __m256d* p1, __m256d a) {
     __m128d p00 = *(__m128d*)p0;
     __m128d p10 = *(__m128d*)p1;
-    __m128d p11 = *((__m128d*)p1 + 1);
     __m128d a0 = *(__m128d*)&a;
     __m128d a1 = *((__m128d*)&a + 1);
     __m128d* p0Ptr = (__m128d*)p0;
@@ -56,8 +45,6 @@ void gather(__m256d* p0, __m256d* p1, __m256d a) {
     p1Ptr[0] = _mm_shuffle_pd(a1, p10, 3);
 }
 
-//All input parameters are aligned
-//We are aligned + 1(double)
 __m256d calculate(__m256d* prev0, __m256d* prev1, 
     __m256d curr0, __m256d curr1, 
     __m256d curr_top0, __m256d curr_top1,
@@ -107,7 +94,6 @@ __m256d calculate(__m256d* prev0, __m256d* prev1,
     sum3 = _mm256_mul_pd(m_tau, sum3);
 
     __m256d result = _mm256_add_pd(uc2_uprev, sum3);
-    //_mm256_storeu_pd(prevOut, result);
     gather(prev0, prev1, result);
 
     __m256d minus_result = _mm256_sub_pd(zeros, result);
