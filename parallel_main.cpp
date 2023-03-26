@@ -228,25 +228,30 @@ int main(int argc, char* argv[]) {
     const int actual_nx = nx + 4;
     std::vector<double> u[] {std::vector<double>(actual_nx * ny), std::vector<double>(actual_nx * ny)};
     std::vector<double> p(actual_nx * ny);
-
-    const auto end = std::chrono::high_resolution_clock::now();
-    const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     
     std::vector<ThreadData> thread_data(thread_count);
     std::vector<double> maxElements(thread_count, 0);
     std::vector<std::jthread> threads;
 
     std::barrier<> barrier(thread_count);
-    for (int i = 0; i < thread_count; i++) {
+    for (int i = 1; i < thread_count; i++) {
         thread_data[i] = ThreadData(i, thread_count, 
             u, &p, m_hxrec, m_hyrec, m_tau, tau,
             nx, ny, actual_nx, nt, sx, sy, &barrier, &maxElements);
         threads.emplace_back(calculate_thread, &thread_data[i]);
     }
 
-    for (int i = 0; i < thread_count; i++) {
+    thread_data[0] = ThreadData(0, thread_count, 
+            u, &p, m_hxrec, m_hyrec, m_tau, tau,
+            nx, ny, actual_nx, nt, sx, sy, &barrier, &maxElements);
+    calculate_thread(&thread_data[0]);
+
+    for (int i = 0; i < thread_count - 1; i++) {
         threads[i].join();
     }
+
+    const auto end = std::chrono::high_resolution_clock::now();
+    const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
     std::cout << duration.count() / 1000.0 << "s" << std::endl;
 
