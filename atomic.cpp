@@ -98,7 +98,7 @@ struct ThreadData {
     int nt;
     int sx;
     int sy;
-    std::vector<std::atomic_bool>* flags;
+    std::vector<std::atomic_int>* flags;
     std::vector<double>* maxElements;
 
     ThreadData() {}
@@ -117,7 +117,7 @@ struct ThreadData {
         int nt,
         int sx,
         int sy,
-        std::vector<std::atomic_bool>* flags,
+        std::vector<std::atomic_int>* flags,
         std::vector<double>* maxElements): thread_number {thread_number},
                  thread_count {thread_count},
                  u {u}, p {p},
@@ -127,39 +127,25 @@ struct ThreadData {
                  {}
 };
 
-void synchronize(std::vector<std::atomic_bool>* flags, int thread_count, int thread_number) {
-    (*flags)[thread_number * 256].store(true);
+void synchronize(std::vector<std::atomic_int>* flags, int thread_count, int thread_number) {
+    const int count = (*flags)[thread_number * 256].fetch_add(1) + 1;
     while (true) {
-        bool all = true;
-        if ((*flags)[thread_count * 256].load()) {
-            (*flags)[thread_number * 256].store(false);
+        if (count == (*flags)[thread_count * 256]) {
             return;
         }
+        bool all = true;
         for (int i = 0; i < thread_count; i++) {
-            all = (*flags)[i * 256].load();
-            if (!all) break;
+            all = (*flags)[i * 256] == count;
+            if (!all) {
+                break;
+            }
         }
         if (all) {
-            (*flags)[thread_count * 256].store(true);
+            (*flags)[thread_count * 256].store(count);
             (*flags)[thread_count * 256].notify_all();
-            (*flags)[thread_number * 256].store(false);
-            (*flags)[thread_number * 256].notify_all();
-            bool any = false;
-            int true_i = 0;
-            for (int i = 0; i < thread_count; i++) {
-                any = (*flags)[i * 256].load();
-                if (any) {
-                    true_i = i;
-                    break;
-                }
-            }
-            if (!any) {
-                (*flags)[thread_count * 256].store(false);
-                return;
-            }
-            (*flags)[true_i * 256].wait(true);
+            return;
         }
-        (*flags)[thread_count * 256].wait(false);
+        (*flags)[thread_count * 256].wait(count - 1);
     }
 }
 
@@ -424,10 +410,10 @@ int main(int argc, char* argv[]) {
     std::vector<ThreadData> thread_data(thread_count);
     std::vector<double> maxElements(thread_count, 0);
     std::vector<std::jthread> threads;
-    std::vector<std::atomic_bool> flags((thread_count + 1)* 256); //each flag is on different cache line
+    std::vector<std::atomic_int> flags((thread_count + 1)* 256); //each flag is on different cache line
 
     for (int i = 0; i < thread_count + 1; i++) {
-        flags[i * 256].store(false);
+        flags[i * 256].store(0);
     }
 
     for (int i = 1; i < thread_count; i++) {
