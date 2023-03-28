@@ -257,17 +257,16 @@ int main(int argc, char* argv[]) {
         }
 
         //final calculations
-        for (int y = ny - 7; y < ny - 1; y++) {
+        for (int y = ny - 2; y < ny - 1; y++) {
             for (int x = 1; x < nx - 1; x += 4) {
-                __m256d newElement = calculate(u[prevIndex], u[currIndex], p, 
+                calculate(u[currIndex], u[prevIndex], p, 
                     y, x, actual_nx, 
                     m_hxrec, m_hyrec, m_tau);
-                maxElement = std::max(maxElement, *((double*)&newElement));
             }
-            u[prevIndex][y * actual_nx + nx - 1] = 0;
+            u[currIndex][y * actual_nx + nx - 1] = 0;
 
             if (y == sy) {
-                u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + 4, tau);                
+                u[currIndex][sy * actual_nx + sx] += tau * tau * f(i + 1, tau);                
             }
         }
 
@@ -280,36 +279,37 @@ int main(int argc, char* argv[]) {
             u[prevIndex][y * actual_nx + nx - 1] = 0;
 
             if (y == sy) {
-                u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + 3, tau);                
-            }
-        }
-        
-        for (int y = ny - 3; y < ny - 1; y++) {
-            for (int x = 1; x < nx - 1; x += 4) {
-                calculate(u[prevIndex], u[currIndex], p, 
-                    y, x, actual_nx, 
-                    m_hxrec, m_hyrec, m_tau);
-            }
-            u[prevIndex][y * actual_nx + nx - 1] = 0;
-
-            if (y == sy) {
                 u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + 2, tau);                
             }
         }
 
-        for (int y = ny - 1; y < ny - 1; y++) {
+        for (int y = ny - 5; y < ny - 1; y++) {
             for (int x = 1; x < nx - 1; x += 4) {
-                calculate(u[prevIndex], u[currIndex], p, 
+                calculate(u[currIndex], u[prevIndex], p, 
                     y, x, actual_nx, 
                     m_hxrec, m_hyrec, m_tau);
+            }
+            u[currIndex][y * actual_nx + nx - 1] = 0;
+
+            if (y == sy) {
+                u[currIndex][sy * actual_nx + sx] += tau * tau * f(i + 3, tau);                
+            }
+        }
+
+        for (int y = ny - 8; y < ny - 1; y++) {
+            for (int x = 1; x < nx - 1; x += 4) {
+                __m256d newElement = calculate(u[prevIndex], u[currIndex], p, 
+                    y, x, actual_nx, 
+                    m_hxrec, m_hyrec, m_tau);
+                maxElement = std::max(maxElement, *((double*)&newElement));
             }
             u[prevIndex][y * actual_nx + nx - 1] = 0;
 
             if (y == sy) {
-                u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + 1, tau);                
+                u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + 4, tau);                
             }
         }
-
+    
         std::swap(currIndex, prevIndex);
             
         std::cout << i << std::endl;

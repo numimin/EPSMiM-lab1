@@ -135,7 +135,7 @@ void synchronize(std::vector<std::atomic_int>* flags, int thread_count, int thre
         }
         bool all = true;
         for (int i = 0; i < thread_count; i++) {
-            all = (*flags)[i * 256] == count;
+            all = (*flags)[i * 256].load() == count;
             if (!all) {
                 break;
             }
@@ -309,17 +309,16 @@ void calculate_thread(ThreadData* data) {
         }
 
         //final calculations
-        for (int y = last_y - 6; y < last_y; y++) {
+                for (int y = last_y - 1; y < last_y; y++) {
             for (int x = 1; x < nx - 1; x += 4) {
-                __m256d newElement = calculate(u[prevIndex], u[currIndex], *p, 
+                calculate(u[currIndex], u[prevIndex], *p, 
                     y, x, actual_nx, 
                     m_hxrec, m_hyrec, m_tau);
-                maxElement = std::max(maxElement, *((double*)&newElement));
             }
-            u[prevIndex][y * actual_nx + nx - 1] = 0;
+            u[currIndex][y * actual_nx + nx - 1] = 0;
 
             if (y == sy) {
-                u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + 4, tau);                
+                u[currIndex][sy * actual_nx + sx] += tau * tau * f(i + 1, tau);                
             }
         }
 
@@ -332,33 +331,34 @@ void calculate_thread(ThreadData* data) {
             u[prevIndex][y * actual_nx + nx - 1] = 0;
 
             if (y == sy) {
-                u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + 3, tau);                
-            }
-        }
-        
-        for (int y = last_y - 2; y < last_y; y++) {
-            for (int x = 1; x < nx - 1; x += 4) {
-                calculate(u[prevIndex], u[currIndex], *p, 
-                    y, x, actual_nx, 
-                    m_hxrec, m_hyrec, m_tau);
-            }
-            u[prevIndex][y * actual_nx + nx - 1] = 0;
-
-            if (y == sy) {
                 u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + 2, tau);                
             }
         }
 
-        for (int y = last_y - 1; y < last_y; y++) {
+        for (int y = last_y - 4; y < last_y; y++) {
             for (int x = 1; x < nx - 1; x += 4) {
-                calculate(u[prevIndex], u[currIndex], *p, 
+                calculate(u[currIndex], u[prevIndex], *p, 
                     y, x, actual_nx, 
                     m_hxrec, m_hyrec, m_tau);
+            }
+            u[currIndex][y * actual_nx + nx - 1] = 0;
+
+            if (y == sy) {
+                u[currIndex][sy * actual_nx + sx] += tau * tau * f(i + 3, tau);                
+            }
+        }
+
+        for (int y = last_y - 7; y < last_y; y++) {
+            for (int x = 1; x < nx - 1; x += 4) {
+                __m256d newElement = calculate(u[prevIndex], u[currIndex], *p, 
+                    y, x, actual_nx, 
+                    m_hxrec, m_hyrec, m_tau);
+                maxElement = std::max(maxElement, *((double*)&newElement));
             }
             u[prevIndex][y * actual_nx + nx - 1] = 0;
 
             if (y == sy) {
-                u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + 1, tau);                
+                u[prevIndex][sy * actual_nx + sx] += tau * tau * f(i + 4, tau);                
             }
         }
 
@@ -410,7 +410,7 @@ int main(int argc, char* argv[]) {
     std::vector<ThreadData> thread_data(thread_count);
     std::vector<double> maxElements(thread_count, 0);
     std::vector<std::jthread> threads;
-    std::vector<std::atomic_int> flags((thread_count + 1)* 256); //each flag is on different cache line
+    std::vector<std::atomic_int> flags((thread_count + 1) * 256); //each flag is on different cache line
 
     for (int i = 0; i < thread_count + 1; i++) {
         flags[i * 256].store(0);
