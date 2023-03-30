@@ -100,6 +100,7 @@ struct ThreadData {
     int sy;
     std::vector<std::atomic_int>* flags;
     std::vector<double>* maxElements;
+    std::barrier<>* barrier;
 
     ThreadData() {}
     ThreadData(
@@ -118,36 +119,43 @@ struct ThreadData {
         int sx,
         int sy,
         std::vector<std::atomic_int>* flags,
-        std::vector<double>* maxElements): thread_number {thread_number},
+        std::vector<double>* maxElements, 
+        std::barrier<>* barrier): thread_number {thread_number},
                  thread_count {thread_count},
                  u {u}, p {p},
                  m_hxrec {m_hxrec}, m_hyrec {m_hyrec}, m_tau {m_tau}, tau {tau},
                  nx {nx}, ny {ny}, actual_nx {actual_nx}, nt {nt}, sx {sx}, sy {sy},
-                 flags {flags}, maxElements {maxElements}
+                 flags {flags}, maxElements {maxElements}, barrier {barrier}
                  {}
 };
 
-void synchronize(std::vector<std::atomic_int>* flags, int thread_count, int thread_number) {
-    const int count = (*flags)[thread_number * 256].fetch_add(1) + 1;
+void wait_left(std::vector<std::atomic_int>* flags, int thread_count, int thread_number, int value) {
+    if (thread_number == 0) return;
+
     while (true) {
-        if (count == (*flags)[thread_count * 256]) {
+        const int actual_value = (*flags)[thread_number - 1];
+        if (actual_value >= value) {
             return;
         }
-        bool all = true;
-        for (int i = 0; i < thread_count; i++) {
-            all = (*flags)[i * 256].load() == count;
-            if (!all) {
-                break;
-            }
-        }
-        if (all) {
-            (*flags)[thread_count * 256].store(count);
-            (*flags)[thread_count * 256].notify_all();
-            return;
-        }
-        (*flags)[thread_count * 256].wait(count - 1);
+        (*flags)[thread_number - 1].wait(actual_value);
     }
 }
+
+void wait_right(std::vector<std::atomic_int>* flags, int thread_count, int thread_number, int value) {
+    if (thread_number == thread_count - 1) return;
+
+    while (true) {
+        const int actual_value = (*flags)[thread_number + 1];
+        if (actual_value >= value) {
+            return;
+        }
+        (*flags)[thread_number + 1].wait(actual_value);
+    }
+}
+
+#define WRITE 0
+#define READ 1
+#define NOT_AFFECTING 2
 
 void calculate_thread(ThreadData* data) {
     const int thread_number = data->thread_number;
@@ -166,6 +174,7 @@ void calculate_thread(ThreadData* data) {
     const int sy = data->sy;
     auto flags = data->flags;
     auto maxElements = data->maxElements;
+    auto barrier = data->barrier;
 
     const int y_count = ny / thread_count;
     int first_y = y_count * thread_number;
@@ -182,15 +191,17 @@ void calculate_thread(ThreadData* data) {
         }
     }
 
-    synchronize(flags, thread_count, thread_number);
-
     first_y = (thread_number == 0) ? first_y + 1 : first_y;
     last_y = (thread_number == thread_count - 1) ? last_y - 1 : last_y;
 
     int prevIndex = 0;
     int currIndex = 1;
 
-    for (int i = 0; i < nt; i += 5) {
+    int iterations = 0;
+    for (int i = 0; i < nt; i += 5, iterations++) {
+        (*flags)[thread_number]++;
+        (*flags)[thread_number].notify_all();
+        wait_left(flags, thread_count, thread_number, iterations + READ);
         double maxElement = 0;
         //Prepare data
         for (int y = first_y; y < first_y + 7; y++) {
@@ -256,7 +267,8 @@ void calculate_thread(ThreadData* data) {
             u[prevIndex][y * actual_nx + nx - 1] = 0;
 
             if (y == first_y + 7) {
-                synchronize(flags, thread_count, thread_number);               
+                (*flags)[thread_number]++;
+                (*flags)[thread_number].notify_all();
             }
 
             if (y - 7 == sy) {
@@ -294,6 +306,12 @@ void calculate_thread(ThreadData* data) {
 
             if (y - 1 == sy) {
                 u[currIndex][sy * actual_nx + sx] += tau * tau * f(i + 1, tau);                
+            }
+
+            if (y == last_y - 1) {
+                (*flags)[thread_number]++;
+                (*flags)[thread_number].notify_all();
+                wait_right(flags, thread_count, thread_number, iterations + NOT_AFFECTING);
             }
 
             for (int x = 1; x < nx - 1; x += 4) {
@@ -364,7 +382,7 @@ void calculate_thread(ThreadData* data) {
 
         std::swap(currIndex, prevIndex);
         (*maxElements)[thread_number] = maxElement;
-        synchronize(flags, thread_count, thread_number);               
+        barrier->arrive_and_wait();
         if (thread_number == 0) {
             std::cout << i << std::endl;
             std::cout << *std::max_element(maxElements->begin(), maxElements->end()) << std::endl;
@@ -410,22 +428,24 @@ int main(int argc, char* argv[]) {
     std::vector<ThreadData> thread_data(thread_count);
     std::vector<double> maxElements(thread_count, 0);
     std::vector<std::jthread> threads;
-    std::vector<std::atomic_int> flags((thread_count + 1) * 256); //each flag is on different cache line
+    std::vector<std::atomic_int> flags(thread_count * 256); //each flag is on different cache line
 
-    for (int i = 0; i < thread_count + 1; i++) {
+    for (int i = 0; i < thread_count; i++) {
         flags[i * 256].store(0);
     }
+
+    std::barrier<> barrier(thread_count);
 
     for (int i = 1; i < thread_count; i++) {
         thread_data[i] = ThreadData(i, thread_count, 
             u, &p, m_hxrec, m_hyrec, m_tau, tau,
-            nx, ny, actual_nx, nt, sx, sy, &flags, &maxElements);
+            nx, ny, actual_nx, nt, sx, sy, &flags, &maxElements, &barrier);
         threads.emplace_back(calculate_thread, &thread_data[i]);
     }
 
     thread_data[0] = ThreadData(0, thread_count, 
             u, &p, m_hxrec, m_hyrec, m_tau, tau,
-            nx, ny, actual_nx, nt, sx, sy, &flags, &maxElements);
+            nx, ny, actual_nx, nt, sx, sy, &flags, &maxElements, &barrier);
     calculate_thread(&thread_data[0]);
 
     for (int i = 0; i < thread_count - 1; i++) {

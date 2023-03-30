@@ -312,8 +312,8 @@ int main(int argc, char* argv[]) {
     
         std::swap(currIndex, prevIndex);
             
-        std::cout << i << std::endl;
-        std::cout << maxElement << std::endl;        
+        std::cout << i + 4 << std::endl;
+        std::cout << maxElement << std::endl;      
     }
 
     if (iterations % 2 == 1 && (nt / iterations) % 2 == 1) {
