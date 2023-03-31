@@ -201,7 +201,7 @@ void calculate_thread(ThreadData* data) {
     for (int i = 0; i < nt; i += 5, iterations++) {
         (*flags)[thread_number]++;
         (*flags)[thread_number].notify_all();
-        wait_left(flags, thread_count, thread_number, iterations + READ);
+        wait_left(flags, thread_count, thread_number, 3 * iterations + READ);
         double maxElement = 0;
         //Prepare data
         for (int y = first_y; y < first_y + 7; y++) {
@@ -311,7 +311,7 @@ void calculate_thread(ThreadData* data) {
             if (y == last_y - 1) {
                 (*flags)[thread_number]++;
                 (*flags)[thread_number].notify_all();
-                wait_right(flags, thread_count, thread_number, iterations + NOT_AFFECTING);
+                wait_right(flags, thread_count, thread_number, 3 * iterations + NOT_AFFECTING);
             }
 
             for (int x = 1; x < nx - 1; x += 4) {
@@ -381,12 +381,10 @@ void calculate_thread(ThreadData* data) {
         }
 
         std::swap(currIndex, prevIndex);
-        (*maxElements)[thread_number] = maxElement;
-        barrier->arrive_and_wait();
-        if (thread_number == 0) {
-            std::cout << i << std::endl;
-            std::cout << *std::max_element(maxElements->begin(), maxElements->end()) << std::endl;
-        }
+        //(*maxElements)[thread_number] = maxElement;
+        //barrier->arrive_and_wait();
+        std::cout << i << std::endl;
+        std::cout << "Thread " << thread_number << ": " << /**std::max_element(maxElements->begin(), maxElements->end())*/ maxElement << std::endl;
     }
 }
 
